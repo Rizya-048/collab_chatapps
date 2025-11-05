@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Message;
 use App\Models\Conversation;
+use App\Events\MessageSent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -29,7 +30,6 @@ class ChatController extends Controller
         return view('chat.show', compact('conversation'));
     }
 
-
     // Kirim pesan baru
     public function sendMessage(Request $request, $id)
     {
@@ -39,14 +39,19 @@ class ChatController extends Controller
 
         $conversation = Conversation::findOrFail($id);
 
-        Message::create([
+        // Simpan pesan ke database
+        $message = Message::create([
             'conversation_id' => $conversation->id,
             'user_id' => Auth::id(),
             'content' => $request->content,
         ]);
 
+        // Kirim event realtime
+        broadcast(new MessageSent($message))->toOthers();
+
         return redirect()->route('chat.show', $conversation->id);
     }
+
     public function createConversation(Request $request)
     {
         $conversation = Conversation::create(['title' => $request->title]);
@@ -56,6 +61,7 @@ class ChatController extends Controller
 
         return redirect()->route('chat.index');
     }
+
     public function createBroadcast(Request $request)
     {
         $request->validate([
@@ -76,5 +82,4 @@ class ChatController extends Controller
 
         return redirect()->route('chat.index')->with('success', 'Grup berhasil dibuat!');
     }
-
 }
